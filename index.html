@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Derecho Romano</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            font-family: 'Georgia', serif;
+        }
+        
+        .container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .wheel-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+        }
+        
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #ff0000;
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.3));
+            z-index: 10;
+        }
+        
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 4px solid black;
+            border-radius: 50%;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            background: white;
+            color: black;
+            border: 3px solid black;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        button:hover:not(:disabled) {
+            background: black;
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            min-height: 100px;
+            padding: 20px;
+            background: white;
+            border: 3px solid black;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .result h2 {
+            margin: 0 0 10px 0;
+            color: black;
+            font-size: 24px;
+        }
+        
+        .result p {
+            margin: 5px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .hidden {
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: white; text-align: center; margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+            Ruleta de Derecho Romano
+        </h1>
+        
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="500" height="500"></canvas>
+            <div class="center-circle">GIRAR</div>
+        </div>
+        
+        <button id="spinBtn">Girar Ruleta</button>
+        
+        <div id="result" class="result hidden">
+            <h2 id="resultTitle"></h2>
+            <p id="resultDescription"></p>
+        </div>
+    </div>
+
+    <script>
+        const items = [
+            { term: "Lex", meaning: "Ley" },
+            { term: "Ius", meaning: "Derecho" },
+            { term: "Iustitia", meaning: "Justicia" },
+            { term: "Aequitas", meaning: "Equidad" },
+            { term: "Praetor", meaning: "Pretor (magistrado)" },
+            { term: "Senatus", meaning: "Senado" },
+            { term: "Populus", meaning: "Pueblo" },
+            { term: "Civis", meaning: "Ciudadano" },
+            { term: "Civitas", meaning: "Ciudadanía" },
+            { term: "Imperium", meaning: "Poder, autoridad" },
+            { term: "Res publica", meaning: "Estado, república" },
+            { term: "Consuetudo", meaning: "Costumbre" },
+            { term: "Edictum", meaning: "Edicto" },
+            { term: "Decretum", meaning: "Decreto" },
+            { term: "Constitutio", meaning: "Constitución imperial" },
+            { term: "Codex", meaning: "Código" },
+            { term: "Corpus iuris civilis", meaning: "Cuerpo del derecho civil" },
+            { term: "Jurisprudentia", meaning: "Jurisprudencia" },
+            { term: "Magistratus", meaning: "Magistrado" },
+            { term: "Senator", meaning: "Senador" }
+        ];
+
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const resultDiv = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultDescription = document.getElementById('resultDescription');
+
+        let currentRotation = 0;
+        let isSpinning = false;
+
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 240;
+            const sliceAngle = (2 * Math.PI) / items.length;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(currentRotation);
+
+            items.forEach((item, i) => {
+                const startAngle = i * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+
+                // Alternar entre blanco y negro
+                ctx.fillStyle = i % 2 === 0 ? 'white' : 'black';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fill();
+
+                // Borde de cada sección
+                ctx.strokeStyle = i % 2 === 0 ? 'black' : 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Texto
+                ctx.save();
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = i % 2 === 0 ? 'black' : 'white';
+                ctx.font = 'bold 14px Georgia';
+                ctx.fillText(item.term, radius * 0.65, 0);
+                ctx.restore();
+            });
+
+            // Borde exterior
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultDiv.classList.add('hidden');
+
+            const spins = 5 + Math.random() * 5; // 5-10 vueltas
+            const extraDegrees = Math.random() * 360;
+            const totalRotation = spins * 360 + extraDegrees;
+            const duration = 4000; // 4 segundos
+            const startTime = Date.now();
+            const startRotation = currentRotation;
+
+            function animate() {
+                const now = Date.now();
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing out cubic
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                currentRotation = startRotation + (totalRotation * Math.PI / 180) * easeProgress;
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+                    showResult();
+                }
+            }
+
+            animate();
+        }
+
+        function showResult() {
+            const normalizedRotation = (currentRotation % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+            const pointerAngle = (2 * Math.PI - normalizedRotation + Math.PI / 2) % (2 * Math.PI);
+            const sliceAngle = (2 * Math.PI) / items.length;
+            const selectedIndex = Math.floor(pointerAngle / sliceAngle) % items.length;
+            const selected = items[selectedIndex];
+
+            resultTitle.textContent = selected.term;
+            resultDescription.textContent = selected.meaning;
+            resultDiv.classList.remove('hidden');
+        }
+
+        spinBtn.addEventListener('click', spin);
+        drawWheel();
+    </script>
+</body>
+</html>
